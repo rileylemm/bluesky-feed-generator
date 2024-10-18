@@ -51,8 +51,18 @@ export class FeedGenerator {
       },
     })
 
+    // Add this route handler for the root path
+    app.get('/', (req, res) => {
+      res.send('Welcome to the feed generator!')
+    })
+
     // Create the FeedGenerator instance
-    const feedGen = new FeedGenerator(app, db, new FirehoseSubscription(db, { db, cfg, didResolver, customFeeds: new Map() }), cfg)
+    const feedGen = new FeedGenerator(
+      app,
+      db,
+      new FirehoseSubscription(db, { db, cfg, didResolver, customFeeds: new Map() }),
+      cfg
+    )
 
     // Use FeedGenerator's customFeeds in the appContext
     const appContext: AppContext = {
@@ -70,11 +80,6 @@ export class FeedGenerator {
     feedGen.registerFeed({
       shortname: aiFeed.shortname,
       handler: aiFeed.handler,
-    })
-
-    app.use((req, res, next) => {
-      res.type('application/json')
-      next()
     })
 
     app.use(server.xrpc.router)
@@ -104,13 +109,13 @@ export class FeedGenerator {
       console.error('Request method:', req.method)
       console.error('Request headers:', req.headers)
       console.error('Request body:', req.body)
-      
+
       if (err.code) console.error('Error code:', err.code)
       if (err.type) console.error('Error type:', err.type)
       if (err.cause) console.error('Error cause:', err.cause)
 
       console.log('Database connection state:', this.db.getConnectionState())
-      
+
       if (!res.headersSent) {
         if (process.env.NODE_ENV === 'development') {
           res.status(500).json({
