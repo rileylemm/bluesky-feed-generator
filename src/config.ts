@@ -5,6 +5,8 @@ export type AppContext = {
   db: Database
   didResolver: DidResolver
   cfg: Config
+  customFeeds: Map<string, (ctx: AppContext, params: any) => Promise<any>>
+
 }
 
 export type Config = {
@@ -16,4 +18,6 @@ export type Config = {
   serviceDid: string
   publisherDid: string
   subscriptionReconnectDelay: number
+  db: Database
+
 }
