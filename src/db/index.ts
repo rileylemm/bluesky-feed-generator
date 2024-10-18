@@ -36,5 +36,3 @@ export const migrateToLatest = async (db: Database) => {
   const { error } = await migrator.migrateToLatest()
   if (error) throw error
 }
-
-// We don't need to export Database as a type anymore, as it's already exported as a class

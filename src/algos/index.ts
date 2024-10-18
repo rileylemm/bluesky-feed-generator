@@ -11,4 +11,7 @@ const algos: Record<string, AlgoHandler> = {
   [aiFeed.shortname]: aiFeed.handler,
 }
 
+// Add a console log to verify registered feeds
+console.log('Registered feeds:', Object.keys(algos));
+
 export default algos

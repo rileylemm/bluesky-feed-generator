@@ -21,6 +21,11 @@ export const handler = async (ctx: AppContext, params: QueryParams) => {
     let builder = ctx.db
       .selectFrom('post')
       .select(['uri', 'cid', 'indexedAt'])
+      .where(sql`lower(text) like '%ai%'`)
+      .orWhere(sql`lower(text) like '%artificial intelligence%'`)
+      .orWhere(sql`lower(text) like '%machine learning%'`)
+      .orWhere(sql`lower(text) like '%deep learning%'`)
+      .orWhere(sql`lower(text) like '%neural network%'`)
       .orderBy('indexedAt', 'desc')
       .orderBy('cid', 'desc')
       .limit(params.limit ?? 50)

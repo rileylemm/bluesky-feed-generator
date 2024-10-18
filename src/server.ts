@@ -9,6 +9,7 @@ import { Database } from './db'
 import { FirehoseSubscription } from './subscription'
 import { AppContext, Config } from './config'
 import wellKnown from './well-known'
+import * as aiFeed from './algos/ai-feed'  // Import the ai-feed
 
 export class FeedGenerator {
   public app: express.Application
@@ -35,8 +36,6 @@ export class FeedGenerator {
   static create(cfg: Config) {
     const app = express()
     const db = cfg.db
-    const firehose = new FirehoseSubscription(db, cfg.subscriptionEndpoint)
-
     const didCache = new MemoryCache()
     const didResolver = new DidResolver({
       plcUrl: 'https://plc.directory',
@@ -44,32 +43,42 @@ export class FeedGenerator {
     })
 
     const server = createServer({
-      validateResponse: false, // Disabled response validation
+      validateResponse: false,
       payload: {
-        jsonLimit: 100 * 1024, // 100kb
-        textLimit: 100 * 1024, // 100kb
-        blobLimit: 5 * 1024 * 1024, // 5mb
+        jsonLimit: 100 * 1024,
+        textLimit: 100 * 1024,
+        blobLimit: 5 * 1024 * 1024,
       },
     })
 
-    const feedGen = new FeedGenerator(app, db, firehose, cfg)
-    const ctx: AppContext = {
+    // Create the FeedGenerator instance
+    const feedGen = new FeedGenerator(app, db, new FirehoseSubscription(db, { db, cfg, didResolver, customFeeds: new Map() }), cfg)
+
+    // Use FeedGenerator's customFeeds in the appContext
+    const appContext: AppContext = {
       db,
       cfg,
       didResolver,
-      customFeeds: feedGen.customFeeds,
+      customFeeds: feedGen.customFeeds,  // Use the FeedGenerator's customFeeds map
     }
-    feedGeneration(server, ctx)
-    describeGenerator(server, ctx)
 
-    // Set Content-Type header
+    // Register feed-generation and description methods
+    feedGeneration(server, appContext)
+    describeGenerator(server, appContext)
+
+    // Register the ai-feed
+    feedGen.registerFeed({
+      shortname: aiFeed.shortname,
+      handler: aiFeed.handler,
+    })
+
     app.use((req, res, next) => {
       res.type('application/json')
       next()
     })
 
     app.use(server.xrpc.router)
-    app.use(wellKnown(ctx))
+    app.use(wellKnown(appContext))
 
     return feedGen
   }
@@ -96,16 +105,13 @@ export class FeedGenerator {
       console.error('Request headers:', req.headers)
       console.error('Request body:', req.body)
       
-      // Log additional details about the error
       if (err.code) console.error('Error code:', err.code)
       if (err.type) console.error('Error type:', err.type)
       if (err.cause) console.error('Error cause:', err.cause)
 
-      // Log the state of the database connection
       console.log('Database connection state:', this.db.getConnectionState())
       
       if (!res.headersSent) {
-        // In development mode, send detailed error information
         if (process.env.NODE_ENV === 'development') {
           res.status(500).json({
             error: 'InternalServerError',
@@ -117,7 +123,6 @@ export class FeedGenerator {
             cause: err.cause
           })
         } else {
-          // In production, still send a generic error message
           res.status(500).json({
             error: 'InternalServerError',
             message: 'An unexpected error occurred'
